@@ -302,7 +302,7 @@ $ npm run dev
   <figcaption>Figure 1: Live Monitoring Dashboard Screenshot</figcaption>
   <img src="assets/BP.png" alt="BP Screenshot" />
   <figcaption>Figure 2: Live Monitoring of Heart Rate</figcaption>
-  <img src="assets/spo2.png" alt="Spo2 Screenshot" />
+  <img src="assets/Spo2.png" alt="Spo2 Screenshot" />
   <figcaption>Figure 3: Live Monitoring of SpO2 Rate</figcaption>
   <img src="assets/History1.png" alt="History Screenshot" />
   <figcaption>Figure 4: Live Monitoring of History</figcaption>
