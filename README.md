@@ -104,8 +104,8 @@ flowchart LR
     CouchDB --> Dashboard["🌐 Live Monitoring Website"]
     CouchDB --> LedgerViewer["🔍 Blockchain Ledger Viewer"]
 
-    classDef device fill:#ffecd1,stroke:#ff7f50,stroke-width:2px;
-    classDef backend fill:#e0f7fa,stroke:#00796b,stroke-width:2px;
+    classDef device fill:#ffecd1,stroke:#ff7f50,stroke-width:2px,color:#000;
+    classDef backend fill:#e0f7fa,stroke:#00796b,stroke-width:2px,color:#000;
     class Sensor,AES,TLS device;
     class MQTT,Decrypt,Fabric,CouchDB backend;
 ```
