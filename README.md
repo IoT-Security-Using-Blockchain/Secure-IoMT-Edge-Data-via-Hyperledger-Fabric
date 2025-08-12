@@ -76,16 +76,20 @@ Unlike public blockchains such as Ethereum, Fabric allows fine-grained control o
   - `mqtt_listener.sh` — Listens for MQTT messages & pushes to ledger
 - **python_utils/**
   - `decrypt_aes.py` — AES decryption for incoming MQTT messages
-- **certs/**
-  - `ca.crt` — Certificate Authority file
-  - `server.crt` — Server certificate
-  - `server.key` — Server private key
 - **web_dashboard/**
-  - `index.html` — Live SpO₂ monitoring interface
-  - `app.js` — Dashboard logic & real-time data fetching
-  - `style.css` — Dashboard styling
+  - `babel.config.json` — Babel configuration for JSX/ESNext transpilation
+  - `package.json / package-lock.json` — Node.js dependencies
+  - `postcss.config.js` — PostCSS configuration for CSS processing
+  - `tailwind.config.js` — TailwindCSS configuration
+  - `server.jsx` — Backend server entry point for the dashboard
+  - `public/` — Static assets served by the dashboard
+  - `src/` — Source code for React/Tailwind UI components
+  - `config/` — Configuration files (API endpoints, settings)
+  - `models/` — Data models used by the dashboard backend
 - `README.md` — Project documentation
+- `prerequisites.md` — Project requirement documentation
 - **`assets`** — Project Pictures
+- **`LICENSE`** — Project LICENSE
 
 
 ## ⚙️ System Architecture
@@ -134,13 +138,10 @@ Sending encrypted SpO₂: 98, Heart Rate: 76
 Encrypted Payload: QWxhZGRpbjpvcGVuIHNlc2FtZQ==
 Message published to topic: spo2/healthdata
 ```
----
 
-```markdown
 > **⚠️ Note:** It is **highly recommended** to use a **Linux environment** (Ubuntu/Debian) for this setup, as Hyperledger Fabric and Docker services run more reliably on Linux.  
 > Windows users should use **WSL2** or a **Linux virtual machine**.
-```
----
+
 
 ### 2️⃣ Blockchain Network Setup
 
@@ -168,6 +169,8 @@ Message published to topic: spo2/healthdata
     - Start the Fabric network
     - Deploy custom chaincode (for SpO₂ storage)
     - Start the MQTT listener
+>**⚠️ NOTE:** Keep the bash script inside the test-network directory, otherwise paths will be different
+
 
 ### 📜 Example Blockchain Transaction Log
 ```plaintext
@@ -181,7 +184,60 @@ Message published to topic: spo2/healthdata
 [INFO] CouchDB updated successfully.
 ```
 
-### 3️⃣ MQTT TLS Configuration
+### 🔐 TLS Certificates & Keys for MQTT over TLS
+To enable secure communication between your ESP32, MQTT broker, and dashboard using TLS encryption, you must first generate the necessary certificates and keys.
+>**Note:** This guide uses openssl. It’s recommended to run this in a Linux environment for compatibility.
+
+#### 1️⃣ Create a Certificate Authority (CA)
+```bash
+# Generate private key for the CA
+openssl genrsa -out ca.key 2048
+
+# Generate the CA certificate
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 -out ca.crt \
+  -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=MQTT-CA"
+```
+---
+#### 2️⃣ Generate the Server Certificate (for MQTT Broker)
+```bash
+# Generate the broker's private key
+openssl genrsa -out server.key 2048
+
+# Create a certificate signing request (CSR) for the broker
+openssl req -new -key server.key -out server.csr \
+  -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=broker.example.com"
+
+# Sign the broker certificate with the CA
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+  -out server.crt -days 365 -sha256
+```
+---
+#### 3️⃣ Generate the Client Certificate (for ESP32 or Web App)
+```bash
+# Generate the client's private key
+openssl genrsa -out client.key 2048
+
+# Create a CSR for the client
+openssl req -new -key client.key -out client.csr \
+  -subj "/C=US/ST=State/L=City/O=Organization/OU=OrgUnit/CN=esp32-client"
+
+# Sign the client certificate with the CA
+openssl x509 -req -in client.csr -CA ca.crt -CAkey ca.key -CAcreateserial \
+  -out client.crt -days 365 -sha256
+```
+---
+#### 4️⃣ Files You Should Have Now
+| File         | Purpose                                              |
+| ------------ | ---------------------------------------------------- |
+| `ca.key`     | Private key for the Certificate Authority            |
+| `ca.crt`     | Public CA certificate (shared with broker & clients) |
+| `server.key` | Private key for MQTT broker                          |
+| `server.crt` | Public certificate for MQTT broker (signed by CA)    |
+| `client.key` | Private key for MQTT client (ESP32/Web App)          |
+| `client.crt` | Public certificate for MQTT client (signed by CA)    |
+---
+
+### 3️⃣ Configure MQTT Broker (Mosquitto) for TLS
 ```bash
 # Place TLS certs in certs/ folder:
 # certs/ca.crt
@@ -189,18 +245,39 @@ Message published to topic: spo2/healthdata
 # certs/server.key
 
 # MQTT broker should run on port 8883 (TLS)
+# All the certificates and keys should be owned by mosquitto
 # Example with Mosquitto:
 ```
-```markdown
-$ sudo nano /etc/mosquitto/mosquitto.config
+```bash
+listener 8883
+cafile /etc/mosquitto/certs/ca.crt
+certfile /etc/mosquitto/certs/server.crt
+keyfile /etc/mosquitto/certs/server.key
+require_certificate true
+use_identity_as_username true
 ```
+***Restart Mosquitto after changes:***
+```bash
+sudo systemctl restart mosquitto
+```
+
 
 ### 4️⃣ Web Dashboard Setup
 ```bash
-# Open the dashboard in your browser
+# Navigate to the dashboard folder
 $ cd web_dashboard
-open index.html # or double-click the file
+
+# Install dependencies
+$ npm install
+
+# Start the development server
+$ npm run dev
+
+# The dashboard will be available at:
+# http://localhost:3000
 ```
+
+
 ## 🌐 Dashboard Data Flow
 
 1. **Data Collection:**  
@@ -304,11 +381,8 @@ flowchart TD
     class C,FTLabel fault;
 
     style FaultTolerance fill:#e8f5e9,stroke:#a5d6a7,stroke-width:1px,color:#2e7d32,font-weight:bold;
-
-
-
 ```
-
+---
 ## 👥 Team Members
 - **Amartya Roy** – Blockchain Network & Integration
 - **Hrishikesh Kumar Chaudhary** – IoT Device Programming & Security
@@ -316,7 +390,7 @@ flowchart TD
 - **Anshika** – Web Dashboard & Frontend Development
 
 
-
+---
 ## 📄 License
 ***This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.***
 
